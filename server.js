@@ -10,6 +10,7 @@ const INCREMENT_VALUE = Number(process.env.INCREMENT_VALUE ?? 0.01);
 const MIN_WITHDRAW = Number(process.env.MIN_WITHDRAW ?? 1.5);
 const connectionString = process.env.DATABASE_URL || process.env.LOCAL_DATABASE_URL;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const KIWIWALL_SECRET = process.env.KIWIWALL_SECRET || null;
 
 if (!connectionString) {
   console.error('DATABASE_URL (ou LOCAL_DATABASE_URL) est requis pour se connecter à Postgres.');
@@ -24,6 +25,7 @@ const pool = new Pool({
 
 const app = express();
 app.use(cors());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -188,6 +190,44 @@ app.post('/api/withdraw', authenticate, async (req, res) => {
   } catch (error) {
     console.error('Erreur lors de la mise à jour de la cagnotte:', error.message);
     res.status(500).json({ error: 'Impossible d’effectuer le retrait' });
+  }
+});
+
+app.post('/api/kiwiwall-callback', async (req, res) => {
+  try {
+    if (!KIWIWALL_SECRET) {
+      console.error('KIWIWALL_SECRET non configuré');
+      return res.status(500).send('Secret manquant');
+    }
+
+    const providedSecret = req.query.secret || req.body.secret;
+    if (providedSecret !== KIWIWALL_SECRET) {
+      return res.status(403).send('Signature invalide');
+    }
+
+    const rawSubId = req.body.subid || req.body.sub_id || req.body.user_id;
+    const payoutRaw = req.body.amount ?? req.body.payout ?? req.body.reward;
+    const payout = Number(payoutRaw);
+
+    if (!rawSubId || Number.isNaN(payout) || payout <= 0) {
+      return res.status(400).send('Paramètres invalides');
+    }
+
+    const userKey = rawSubId.includes('@') ? normalizeEmail(rawSubId) : rawSubId;
+    const { rowCount } = await pool.query(
+      'UPDATE users SET balance = balance + $1 WHERE email = $2',
+      [payout, userKey]
+    );
+
+    if (rowCount === 0) {
+      return res.status(404).send('Utilisateur introuvable');
+    }
+
+    console.log(`KiwiWall payout ${payout}€ pour ${userKey}`);
+    res.send('OK');
+  } catch (error) {
+    console.error('Erreur KiwiWall callback:', error.message);
+    res.status(500).send('Erreur serveur');
   }
 });
 

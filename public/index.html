@@ -263,6 +263,40 @@
         color: var(--muted);
       }
 
+      .offerwall {
+        margin-top: 2rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 24px;
+        overflow: hidden;
+        background: rgba(10, 12, 24, 0.6);
+      }
+
+      .offerwall header {
+        padding: 1.1rem 1.5rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .offerwall header h2 {
+        margin: 0;
+        font-size: 1.15rem;
+        letter-spacing: -0.01em;
+      }
+
+      .offerwall header span {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      .offerwall iframe {
+        width: 100%;
+        border: none;
+        min-height: 500px;
+        background: #07090f;
+      }
+
       .hidden {
         display: none !important;
       }
@@ -283,7 +317,11 @@
       }
     </style>
   </head>
-  <body data-increment="0.01" data-min-withdraw="1.5">
+  <body
+    data-increment="0.01"
+    data-min-withdraw="1.5"
+    data-kiwiwall-url="https://www.kiwiwall.com/wall/vipcn3tv7k9z76i3tqupqvmua1jdfur9"
+  >
     <main class="card">
       <header class="card-header">
         <div>
@@ -341,6 +379,13 @@
           <button class="secondary-btn" id="withdraw-button" disabled>Retirer 1,50 €</button>
           <p class="hint" id="withdraw-hint">Retrait possible à partir de 1,50 € collectés.</p>
         </div>
+        <section class="offerwall hidden" id="offerwall">
+          <header>
+            <h2>Missions KiwiWall</h2>
+            <span>Complète une offre pour gagner plus</span>
+          </header>
+          <iframe id="kiwiwall-frame" title="KiwiWall offerwall"></iframe>
+        </section>
         <p class="status" id="status"></p>
       </section>
     </main>
@@ -361,6 +406,8 @@
       const watchButton = document.getElementById('watch-button');
       const withdrawButton = document.getElementById('withdraw-button');
       const withdrawHint = document.getElementById('withdraw-hint');
+      const offerwallSection = document.getElementById('offerwall');
+      const offerwallFrame = document.getElementById('kiwiwall-frame');
 
       let currentToken = null;
 
@@ -426,6 +473,9 @@
         if (typeof canWithdraw === 'boolean') {
           updateWithdrawState(canWithdraw);
         }
+        if (email) {
+          updateOfferwall(email);
+        }
       };
 
       const updateWithdrawState = (canWithdraw) => {
@@ -435,6 +485,20 @@
         withdrawHint.textContent = canWithdraw
           ? 'Tu peux retirer 1,50 € immédiatement.'
           : "Retrait possible à partir de 1,50 € collectés.";
+      };
+
+      const updateOfferwall = (email) => {
+        if (!offerwallSection || !offerwallFrame) return;
+        offerwallSection.classList.remove('hidden');
+        const encodedEmail = encodeURIComponent(email);
+        offerwallFrame.src = `${KIWIWALL_URL}/${encodedEmail}`;
+      };
+
+      const resetOfferwall = () => {
+        if (offerwallFrame) {
+          offerwallFrame.removeAttribute('src');
+        }
+        offerwallSection?.classList.add('hidden');
       };
 
       const parseResponse = async (response) => {
@@ -555,6 +619,7 @@
 
       const MIN_WITHDRAW = Number(body.dataset.minWithdraw || 1.5);
       const INCREMENT_VALUE = Number(body.dataset.increment || 0.01);
+      const KIWIWALL_URL = body.dataset.kiwiwallUrl || '';
 
       const INCREMENT_VALUE_TEXT = () => INCREMENT_VALUE.toFixed(2);
 
@@ -578,6 +643,7 @@
         setToken(null);
         togglePanels(false);
         updateUserUI({ balance: 0 });
+        resetOfferwall();
         if (!silent) {
           setAuthMessage('Tu es déconnecté·e.');
         }
