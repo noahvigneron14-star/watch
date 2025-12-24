@@ -7,11 +7,13 @@
     <style>
       :root {
         --bg: #05070f;
-        --card: rgba(12, 16, 33, 0.85);
+        --card: rgba(12, 16, 33, 0.9);
         --accent: #ffb703;
         --accent-dark: #e18600;
         --text: #f4f6ff;
         --muted: #97a0c3;
+        --card-border: rgba(255, 255, 255, 0.08);
+        --error: #ff4d6d;
       }
 
       * {
@@ -22,7 +24,7 @@
         margin: 0;
         min-height: 100vh;
         font-family: "Space Grotesk", "Segoe UI", sans-serif;
-        background: radial-gradient(circle at 20% 20%, #142143, #05070f 65%);
+        background: radial-gradient(circle at 20% 20%, #172757, #05070f 70%);
         color: var(--text);
         display: flex;
         align-items: center;
@@ -31,13 +33,12 @@
       }
 
       .card {
-        width: min(420px, 100%);
-        padding: 2.75rem 2.25rem;
-        border-radius: 26px;
+        width: min(520px, 100%);
+        padding: 2.5rem;
+        border-radius: 30px;
         background: var(--card);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--card-border);
         box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
-        text-align: center;
         position: relative;
         overflow: hidden;
       }
@@ -45,39 +46,175 @@
       .card::after {
         content: "";
         position: absolute;
-        width: 240px;
-        height: 240px;
-        background: radial-gradient(circle, rgba(255, 183, 3, 0.3), transparent 70%);
-        top: -80px;
-        right: -60px;
-        z-index: 0;
+        inset: 0;
+        background: radial-gradient(circle at 80% -10%, rgba(255, 184, 3, 0.25), transparent 45%);
+        pointer-events: none;
+      }
+
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        position: relative;
+        z-index: 1;
       }
 
       h1 {
-        margin: 0;
-        font-size: clamp(2rem, 5vw, 2.6rem);
+        margin: 0.1rem 0;
+        font-size: clamp(2rem, 4vw, 2.6rem);
         letter-spacing: -0.02em;
-        z-index: 1;
-        position: relative;
       }
 
-      p {
+      .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 0.2em;
+        font-size: 0.75rem;
         color: var(--muted);
-        margin: 0.75rem 0 2.5rem;
-        z-index: 1;
+        margin: 0;
+      }
+
+      .ghost-btn {
+        background: transparent;
+        color: var(--text);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 999px;
+        padding: 0.4rem 1.2rem;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: background 200ms ease, color 200ms ease;
+      }
+
+      .ghost-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .switcher {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 999px;
+        padding: 0.2rem;
+        margin-bottom: 1.25rem;
+      }
+
+      .switch-btn {
+        border: none;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--muted);
+        padding: 0.65rem 0;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 200ms ease, color 200ms ease;
+      }
+
+      .switch-btn.active {
+        background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+        color: #1a1200;
+      }
+
+      .auth-panel {
         position: relative;
+        z-index: 1;
+      }
+
+      .auth-form {
+        display: flex;
+        flex-direction: column;
+        gap: 0.9rem;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        text-align: left;
+      }
+
+      label {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
+      input {
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        background: rgba(5, 7, 15, 0.35);
+        color: var(--text);
+        border-radius: 14px;
+        padding: 0.9rem 1rem;
+        font-size: 1rem;
+        outline: none;
+        transition: border 200ms ease;
+      }
+
+      input:focus {
+        border-color: var(--accent);
+      }
+
+      .primary-btn {
+        border: none;
+        border-radius: 16px;
+        padding: 1rem 1.25rem;
+        font-size: 1rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        cursor: pointer;
+        color: #040404;
+        background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+        transition: transform 200ms ease, box-shadow 200ms ease;
+      }
+
+      .primary-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 15px 30px rgba(255, 183, 3, 0.3);
+      }
+
+      .primary-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .auth-message {
+        min-height: 1.2em;
+        margin-top: 0.8rem;
+        font-size: 0.9rem;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .auth-message.error {
+        color: var(--error);
+      }
+
+      .app-panel {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+      }
+
+      .user-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 999px;
+        padding: 0.4rem 0.9rem;
+        font-size: 0.9rem;
+        color: var(--muted);
+        margin-bottom: 1rem;
       }
 
       .balance {
         font-size: clamp(3rem, 6vw, 3.8rem);
         font-weight: 600;
-        letter-spacing: 0.02em;
-        margin: 0 0 1.5rem;
+        margin: 0.25rem 0 1.5rem;
         display: inline-flex;
         align-items: baseline;
         gap: 0.4rem;
-        z-index: 1;
-        position: relative;
       }
 
       .balance small {
@@ -86,108 +223,294 @@
         font-weight: 400;
       }
 
-      button {
-        width: 100%;
-        border: none;
-        border-radius: 16px;
-        padding: 1.1rem 1.5rem;
-        font-size: 1.1rem;
-        font-weight: 600;
-        letter-spacing: 0.01em;
-        text-transform: uppercase;
-        cursor: pointer;
-        color: #040404;
-        background: linear-gradient(135deg, var(--accent), var(--accent-dark));
-        transition: transform 200ms ease, box-shadow 200ms ease, opacity 200ms ease;
-        z-index: 1;
-        position: relative;
-      }
-
-      button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 15px 35px rgba(255, 183, 3, 0.35);
-      }
-
-      button:disabled {
-        opacity: 0.65;
-        cursor: not-allowed;
-        transform: none;
-        box-shadow: none;
-      }
-
       .status {
-        margin-top: 1.5rem;
+        margin-top: 1.3rem;
         font-size: 0.95rem;
         color: var(--muted);
         min-height: 1.2em;
       }
 
-      @media (max-width: 520px) {
+      .hidden {
+        display: none !important;
+      }
+
+      @media (max-width: 560px) {
         body {
           padding: 1.5rem;
         }
 
         .card {
-          padding: 2.25rem 1.75rem;
+          padding: 2rem 1.5rem;
+        }
+
+        .card-header {
+          flex-direction: column;
+          align-items: flex-start;
         }
       }
     </style>
   </head>
   <body>
     <main class="card">
-      <h1>Cagnotte Pub</h1>
-      <p>Chaque pub regardée ajoute <strong>0,01&nbsp;€</strong> à la cagnotte.</p>
-      <div class="balance">
-        <span id="balance-value">0.00</span>
-        <small>€</small>
-      </div>
-      <button id="watch-button">Regarde une pub</button>
-      <div class="status" id="status"></div>
+      <header class="card-header">
+        <div>
+          <p class="eyebrow">Cagnotte Pub</p>
+          <h1>Fais grimper ta cagnotte</h1>
+        </div>
+        <button class="ghost-btn hidden" id="logout-button">Déconnexion</button>
+      </header>
+
+      <section class="auth-panel" data-auth-panel>
+        <div class="switcher">
+          <button class="switch-btn active" data-switch="login">Connexion</button>
+          <button class="switch-btn" data-switch="signup">Créer un compte</button>
+        </div>
+
+        <form id="login-form" class="auth-form" autocomplete="on">
+          <div class="field">
+            <label for="login-email">Email</label>
+            <input id="login-email" name="email" type="email" required />
+          </div>
+          <div class="field">
+            <label for="login-password">Mot de passe</label>
+            <input id="login-password" name="password" type="password" minlength="6" required />
+          </div>
+          <button class="primary-btn" type="submit">Me connecter</button>
+        </form>
+
+        <form id="signup-form" class="auth-form hidden" autocomplete="on">
+          <div class="field">
+            <label for="signup-email">Email</label>
+            <input id="signup-email" name="email" type="email" required />
+          </div>
+          <div class="field">
+            <label for="signup-password">Mot de passe (min. 6)</label>
+            <input id="signup-password" name="password" type="password" minlength="6" required />
+          </div>
+          <button class="primary-btn" type="submit">Créer mon compte</button>
+        </form>
+
+        <div id="auth-message" class="auth-message"></div>
+      </section>
+
+      <section class="app-panel hidden" data-app-panel>
+        <div class="user-chip">
+          <span>Connecté en tant que</span>
+          <strong id="user-email">–</strong>
+        </div>
+        <p>Chaque pub validée crédite ton solde personnel.</p>
+        <div class="balance">
+          <span id="balance-value">0.00</span>
+          <small>€</small>
+        </div>
+        <button class="primary-btn" id="watch-button">Regarde une pub</button>
+        <p class="status" id="status"></p>
+      </section>
     </main>
 
     <script>
+      const TOKEN_KEY = 'cagnotte_token';
+      const authPanel = document.querySelector('[data-auth-panel]');
+      const appPanel = document.querySelector('[data-app-panel]');
       const balanceValue = document.getElementById('balance-value');
-      const button = document.getElementById('watch-button');
       const statusEl = document.getElementById('status');
+      const userEmailEl = document.getElementById('user-email');
+      const logoutBtn = document.getElementById('logout-button');
+      const authMessage = document.getElementById('auth-message');
+      const authSwitchButtons = document.querySelectorAll('[data-switch]');
+      const loginForm = document.getElementById('login-form');
+      const signupForm = document.getElementById('signup-form');
+      const watchButton = document.getElementById('watch-button');
 
-      const formatBalance = (value) => value.toFixed(2);
+      let currentToken = null;
 
-      async function fetchBalance() {
+      const setToken = (token) => {
+        currentToken = token;
+        if (token) {
+          localStorage.setItem(TOKEN_KEY, token);
+        } else {
+          localStorage.removeItem(TOKEN_KEY);
+        }
+      };
+
+      const togglePanels = (isAuthenticated) => {
+        if (isAuthenticated) {
+          authPanel.classList.add('hidden');
+          appPanel.classList.remove('hidden');
+          logoutBtn.classList.remove('hidden');
+        } else {
+          authPanel.classList.remove('hidden');
+          appPanel.classList.add('hidden');
+          logoutBtn.classList.add('hidden');
+        }
+      };
+
+      const toggleAuthView = (view) => {
+        const showSignup = view === 'signup';
+        signupForm.classList.toggle('hidden', !showSignup);
+        loginForm.classList.toggle('hidden', showSignup);
+        authSwitchButtons.forEach((btn) =>
+          btn.classList.toggle('active', btn.dataset.switch === view)
+        );
+        setAuthMessage('');
+      };
+
+      const setAuthMessage = (text, type = 'info') => {
+        authMessage.textContent = text || '';
+        authMessage.className = `auth-message ${type === 'error' ? 'error' : ''}`;
+      };
+
+      const serializeForm = (form) => Object.fromEntries(new FormData(form).entries());
+
+      const setFormLoading = (form, loading) => {
+        [...form.elements].forEach((el) => {
+          el.disabled = loading && el.tagName !== 'BUTTON';
+        });
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.disabled = loading;
+          submitBtn.textContent = loading ? 'Patiente...' : submitBtn.dataset.label || submitBtn.textContent;
+        }
+      };
+
+      const updateBalanceDisplay = (balance) => {
+        balanceValue.textContent = Number(balance ?? 0).toFixed(2);
+      };
+
+      const updateUserUI = ({ email, balance }) => {
+        if (email) userEmailEl.textContent = email;
+        if (balance !== undefined) updateBalanceDisplay(balance);
+      };
+
+      const parseResponse = async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(data.error || 'Une erreur est survenue');
+        }
+        return data;
+      };
+
+      const authenticateRequest = async (endpoint, body) => {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        return parseResponse(response);
+      };
+
+      const fetchWithAuth = async (url, options = {}) => {
+        if (!currentToken) throw new Error('Non authentifié');
+        const headers = {
+          ...(options.headers || {}),
+          Authorization: `Bearer ${currentToken}`,
+        };
+        if (options.body && !headers['Content-Type']) {
+          headers['Content-Type'] = 'application/json';
+        }
+        const response = await fetch(url, { ...options, headers });
+        return parseResponse(response);
+      };
+
+      const handleAuthSuccess = ({ token, user }) => {
+        setToken(token);
+        updateUserUI(user);
+        togglePanels(true);
+        setAuthMessage('');
+      };
+
+      const handleAuthError = (error) => {
+        setToken(null);
+        setAuthMessage(error.message || 'Impossible de traiter la requête', 'error');
+      };
+
+      loginForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        setAuthMessage('Connexion en cours...');
+        setFormLoading(loginForm, true);
         try {
-          const response = await fetch('/api/balance');
-          if (!response.ok) {
-            throw new Error('Erreur réseau');
-          }
-          const data = await response.json();
-          balanceValue.textContent = formatBalance(data.balance ?? 0);
+          const data = await authenticateRequest('/api/login', serializeForm(loginForm));
+          handleAuthSuccess(data);
+        } catch (error) {
+          handleAuthError(error);
+        } finally {
+          setFormLoading(loginForm, false);
+        }
+      });
+
+      signupForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        setAuthMessage('Création du compte...');
+        setFormLoading(signupForm, true);
+        try {
+          const data = await authenticateRequest('/api/signup', serializeForm(signupForm));
+          handleAuthSuccess(data);
+        } catch (error) {
+          handleAuthError(error);
+        } finally {
+          setFormLoading(signupForm, false);
+        }
+      });
+
+      authSwitchButtons.forEach((button) =>
+        button.addEventListener('click', () => toggleAuthView(button.dataset.switch))
+      );
+
+      const refreshBalance = async () => {
+        try {
+          const data = await fetchWithAuth('/api/balance');
+          updateUserUI(data);
           statusEl.textContent = '';
         } catch (error) {
-          statusEl.textContent = "Impossible de charger la cagnotte.";
-          console.error(error);
+          statusEl.textContent = error.message;
         }
-      }
+      };
 
-      async function watchAd() {
-        button.disabled = true;
+      watchButton.addEventListener('click', async () => {
+        watchButton.disabled = true;
         statusEl.textContent = 'Crédit en cours...';
         try {
-          const response = await fetch('/api/watch-ad', { method: 'POST' });
-          if (!response.ok) {
-            throw new Error('Erreur réseau');
-          }
-          const data = await response.json();
-          balanceValue.textContent = formatBalance(data.balance ?? 0);
-          statusEl.textContent = '+0,01 € ajoutés à la cagnotte';
+          const data = await fetchWithAuth('/api/watch-ad', { method: 'POST' });
+          updateUserUI(data);
+          statusEl.textContent = `+${INCREMENT_VALUE_TEXT()} € ajoutés`;
         } catch (error) {
-          statusEl.textContent = "Impossible d'ajouter la pub. Réessaie.";
-          console.error(error);
+          statusEl.textContent = error.message || "Impossible d'ajouter la pub.";
         } finally {
-          button.disabled = false;
+          watchButton.disabled = false;
         }
-      }
+      });
 
-      button.addEventListener('click', watchAd);
-      fetchBalance();
+      const INCREMENT_VALUE_TEXT = () =>
+        Number(document.body.dataset.increment || 0.01).toFixed(2);
+
+      const bootstrap = async () => {
+        const existingToken = localStorage.getItem(TOKEN_KEY);
+        if (!existingToken) {
+          togglePanels(false);
+          return;
+        }
+
+        setToken(existingToken);
+        try {
+          await refreshBalance();
+          togglePanels(true);
+        } catch (error) {
+          handleLogout(true);
+        }
+      };
+
+      const handleLogout = (silent = false) => {
+        setToken(null);
+        togglePanels(false);
+        updateUserUI({ balance: 0 });
+        if (!silent) {
+          setAuthMessage('Tu es déconnecté·e.');
+        }
+      };
+
+      logoutBtn.addEventListener('click', () => handleLogout());
+
+      bootstrap();
     </script>
   </body>
 </html>

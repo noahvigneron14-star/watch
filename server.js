@@ -1,96 +1,180 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const PORT = process.env.PORT || 3000;
-const DB_PATH = path.join(__dirname, 'data', 'cagnotte.db');
-const INCREMENT_VALUE = 0.01;
+const INCREMENT_VALUE = Number(process.env.INCREMENT_VALUE ?? 0.01);
+const connectionString = process.env.DATABASE_URL || process.env.LOCAL_DATABASE_URL;
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+
+if (!connectionString) {
+  console.error('DATABASE_URL (ou LOCAL_DATABASE_URL) est requis pour se connecter à Postgres.');
+  process.exit(1);
+}
+
+const shouldUseSSL = !/localhost|127\.0\.0\.1/i.test(connectionString);
+const pool = new Pool({
+  connectionString,
+  ssl: shouldUseSSL ? { rejectUnauthorized: false } : false,
+});
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const db = new sqlite3.Database(DB_PATH, (err) => {
-  if (err) {
-    console.error('Erreur lors de la connexion à la base SQLite:', err.message);
+const initializeDatabase = async () => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        balance NUMERIC NOT NULL DEFAULT 0
+      )
+    `);
+  } catch (error) {
+    console.error('Erreur lors de l’initialisation de la base Postgres:', error.message);
     process.exit(1);
   }
-});
-
-const initializeDatabase = () => {
-  db.serialize(() => {
-    db.run(
-      `CREATE TABLE IF NOT EXISTS cagnotte (
-        id INTEGER PRIMARY KEY CHECK (id = 1),
-        balance REAL NOT NULL DEFAULT 0
-      )`,
-      (err) => {
-        if (err) {
-          console.error('Erreur lors de la création de la table:', err.message);
-          process.exit(1);
-        }
-      }
-    );
-
-    db.get('SELECT balance FROM cagnotte WHERE id = 1', (err, row) => {
-      if (err) {
-        console.error('Erreur lors de la lecture de la balance:', err.message);
-        process.exit(1);
-      }
-
-      if (!row) {
-        db.run('INSERT INTO cagnotte (id, balance) VALUES (1, 0)', (insertErr) => {
-          if (insertErr) {
-            console.error('Erreur lors de l’initialisation de la cagnotte:', insertErr.message);
-            process.exit(1);
-          }
-        });
-      }
-    });
-  });
 };
 
 initializeDatabase();
 
-app.get('/api/balance', (_req, res) => {
-  db.get('SELECT balance FROM cagnotte WHERE id = 1', (err, row) => {
-    if (err) {
-      console.error('Erreur lors de la récupération de la balance:', err.message);
-      return res.status(500).json({ error: 'Impossible de récupérer la cagnotte' });
-    }
+const normalizeEmail = (email) => email.trim().toLowerCase();
 
-    res.json({ balance: row?.balance ?? 0 });
-  });
-});
+const generateToken = (userId) =>
+  jwt.sign({ userId }, JWT_SECRET, { expiresIn: '30d' });
 
-app.post('/api/watch-ad', (_req, res) => {
-  db.run('UPDATE cagnotte SET balance = balance + ?', [INCREMENT_VALUE], function (err) {
-    if (err) {
-      console.error('Erreur lors de la mise à jour de la cagnotte:', err.message);
-      return res.status(500).json({ error: 'Impossible de mettre à jour la cagnotte' });
-    }
+const authenticate = (req, res, next) => {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
-    if (this.changes === 0) {
-      return res.status(500).json({ error: 'Cagnotte introuvable' });
-    }
+  if (!token) {
+    return res.status(401).json({ error: 'Authentification requise' });
+  }
 
-    db.get('SELECT balance FROM cagnotte WHERE id = 1', (selectErr, row) => {
-      if (selectErr) {
-        console.error('Erreur lors de la récupération de la balance actualisée:', selectErr.message);
-        return res.status(500).json({ error: 'Impossible de récupérer la cagnotte' });
-      }
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.userId = decoded.userId;
+    return next();
+  } catch (error) {
+    return res.status(401).json({ error: 'Token invalide ou expiré' });
+  }
+};
 
-      res.json({ balance: row.balance, increment: INCREMENT_VALUE });
+app.post('/api/signup', async (req, res) => {
+  const { email, password } = req.body ?? {};
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email et mot de passe requis' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Mot de passe trop court (min. 6 caractères)' });
+  }
+
+  const safeEmail = normalizeEmail(email);
+
+  try {
+    const passwordHash = await bcrypt.hash(password, 10);
+    const { rows } = await pool.query(
+      `INSERT INTO users (email, password_hash)
+       VALUES ($1, $2)
+       RETURNING id, email, balance`,
+      [safeEmail, passwordHash]
+    );
+
+    const user = rows[0];
+    const token = generateToken(user.id);
+    res.status(201).json({
+      token,
+      user: { email: user.email, balance: Number(user.balance) },
     });
-  });
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(409).json({ error: 'Email déjà utilisé' });
+    }
+    console.error('Erreur lors de la création du compte:', error.message);
+    res.status(500).json({ error: 'Impossible de créer le compte' });
+  }
 });
 
-process.on('SIGINT', () => {
-  db.close();
-  process.exit(0);
+app.post('/api/login', async (req, res) => {
+  const { email, password } = req.body ?? {};
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email et mot de passe requis' });
+  }
+
+  try {
+    const safeEmail = normalizeEmail(email);
+    const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [safeEmail]);
+
+    if (!rows.length) {
+      return res.status(401).json({ error: 'Identifiants invalides' });
+    }
+
+    const user = rows[0];
+    const passwordValid = await bcrypt.compare(password, user.password_hash);
+
+    if (!passwordValid) {
+      return res.status(401).json({ error: 'Identifiants invalides' });
+    }
+
+    const token = generateToken(user.id);
+    res.json({ token, user: { email: user.email, balance: Number(user.balance) } });
+  } catch (error) {
+    console.error('Erreur lors de la connexion:', error.message);
+    res.status(500).json({ error: 'Impossible de se connecter' });
+  }
 });
+
+app.get('/api/balance', authenticate, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT email, balance FROM users WHERE id = $1', [req.userId]);
+
+    if (!rows.length) {
+      return res.status(404).json({ error: 'Utilisateur introuvable' });
+    }
+
+    res.json({ email: rows[0].email, balance: Number(rows[0].balance) });
+  } catch (error) {
+    console.error('Erreur lors de la récupération de la balance:', error.message);
+    res.status(500).json({ error: 'Impossible de récupérer la cagnotte' });
+  }
+});
+
+app.post('/api/watch-ad', authenticate, async (req, res) => {
+  try {
+    const { rowCount, rows } = await pool.query(
+      'UPDATE users SET balance = balance + $1 WHERE id = $2 RETURNING balance',
+      [INCREMENT_VALUE, req.userId]
+    );
+
+    if (rowCount === 0) {
+      return res.status(404).json({ error: 'Utilisateur introuvable' });
+    }
+
+    res.json({ balance: Number(rows[0].balance), increment: INCREMENT_VALUE });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de la cagnotte:', error.message);
+    res.status(500).json({ error: 'Impossible de mettre à jour la cagnotte' });
+  }
+});
+
+const shutdown = () => {
+  pool
+    .end()
+    .catch((error) => console.error('Erreur lors de la fermeture de la connexion Postgres:', error.message))
+    .finally(() => process.exit(0));
+};
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 app.listen(PORT, () => {
   console.log(`Serveur prêt sur http://localhost:${PORT}`);
