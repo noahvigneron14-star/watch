@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cagnotte Pub</title>
+    <style>
+      :root {
+        --bg: #05070f;
+        --card: rgba(12, 16, 33, 0.85);
+        --accent: #ffb703;
+        --accent-dark: #e18600;
+        --text: #f4f6ff;
+        --muted: #97a0c3;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Space Grotesk", "Segoe UI", sans-serif;
+        background: radial-gradient(circle at 20% 20%, #142143, #05070f 65%);
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem;
+      }
+
+      .card {
+        width: min(420px, 100%);
+        padding: 2.75rem 2.25rem;
+        border-radius: 26px;
+        background: var(--card);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
+        text-align: center;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .card::after {
+        content: "";
+        position: absolute;
+        width: 240px;
+        height: 240px;
+        background: radial-gradient(circle, rgba(255, 183, 3, 0.3), transparent 70%);
+        top: -80px;
+        right: -60px;
+        z-index: 0;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2rem, 5vw, 2.6rem);
+        letter-spacing: -0.02em;
+        z-index: 1;
+        position: relative;
+      }
+
+      p {
+        color: var(--muted);
+        margin: 0.75rem 0 2.5rem;
+        z-index: 1;
+        position: relative;
+      }
+
+      .balance {
+        font-size: clamp(3rem, 6vw, 3.8rem);
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        margin: 0 0 1.5rem;
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.4rem;
+        z-index: 1;
+        position: relative;
+      }
+
+      .balance small {
+        font-size: 1rem;
+        color: var(--muted);
+        font-weight: 400;
+      }
+
+      button {
+        width: 100%;
+        border: none;
+        border-radius: 16px;
+        padding: 1.1rem 1.5rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        text-transform: uppercase;
+        cursor: pointer;
+        color: #040404;
+        background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+        transition: transform 200ms ease, box-shadow 200ms ease, opacity 200ms ease;
+        z-index: 1;
+        position: relative;
+      }
+
+      button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 15px 35px rgba(255, 183, 3, 0.35);
+      }
+
+      button:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .status {
+        margin-top: 1.5rem;
+        font-size: 0.95rem;
+        color: var(--muted);
+        min-height: 1.2em;
+      }
+
+      @media (max-width: 520px) {
+        body {
+          padding: 1.5rem;
+        }
+
+        .card {
+          padding: 2.25rem 1.75rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Cagnotte Pub</h1>
+      <p>Chaque pub regardée ajoute <strong>0,01&nbsp;€</strong> à la cagnotte.</p>
+      <div class="balance">
+        <span id="balance-value">0.00</span>
+        <small>€</small>
+      </div>
+      <button id="watch-button">Regarde une pub</button>
+      <div class="status" id="status"></div>
+    </main>
+
+    <script>
+      const balanceValue = document.getElementById('balance-value');
+      const button = document.getElementById('watch-button');
+      const statusEl = document.getElementById('status');
+
+      const formatBalance = (value) => value.toFixed(2);
+
+      async function fetchBalance() {
+        try {
+          const response = await fetch('/api/balance');
+          if (!response.ok) {
+            throw new Error('Erreur réseau');
+          }
+          const data = await response.json();
+          balanceValue.textContent = formatBalance(data.balance ?? 0);
+          statusEl.textContent = '';
+        } catch (error) {
+          statusEl.textContent = "Impossible de charger la cagnotte.";
+          console.error(error);
+        }
+      }
+
+      async function watchAd() {
+        button.disabled = true;
+        statusEl.textContent = 'Crédit en cours...';
+        try {
+          const response = await fetch('/api/watch-ad', { method: 'POST' });
+          if (!response.ok) {
+            throw new Error('Erreur réseau');
+          }
+          const data = await response.json();
+          balanceValue.textContent = formatBalance(data.balance ?? 0);
+          statusEl.textContent = '+0,01 € ajoutés à la cagnotte';
+        } catch (error) {
+          statusEl.textContent = "Impossible d'ajouter la pub. Réessaie.";
+          console.error(error);
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      button.addEventListener('click', watchAd);
+      fetchBalance();
+    </script>
+  </body>
+</html>
