@@ -230,6 +230,39 @@
         min-height: 1.2em;
       }
 
+      .withdraw-panel {
+        margin-top: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .secondary-btn {
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        border-radius: 16px;
+        padding: 0.9rem 1.25rem;
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--text);
+        background: transparent;
+        cursor: pointer;
+        transition: background 200ms ease, color 200ms ease, border 200ms ease;
+      }
+
+      .secondary-btn:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .secondary-btn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+
+      .hint {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+
       .hidden {
         display: none !important;
       }
@@ -250,7 +283,7 @@
       }
     </style>
   </head>
-  <body>
+  <body data-increment="0.01" data-min-withdraw="1.5">
     <main class="card">
       <header class="card-header">
         <div>
@@ -304,6 +337,10 @@
           <small>€</small>
         </div>
         <button class="primary-btn" id="watch-button">Regarde une pub</button>
+        <div class="withdraw-panel">
+          <button class="secondary-btn" id="withdraw-button" disabled>Retirer 1,50 €</button>
+          <p class="hint" id="withdraw-hint">Retrait possible à partir de 1,50 € collectés.</p>
+        </div>
         <p class="status" id="status"></p>
       </section>
     </main>
@@ -312,6 +349,7 @@
       const TOKEN_KEY = 'cagnotte_token';
       const authPanel = document.querySelector('[data-auth-panel]');
       const appPanel = document.querySelector('[data-app-panel]');
+      const body = document.body;
       const balanceValue = document.getElementById('balance-value');
       const statusEl = document.getElementById('status');
       const userEmailEl = document.getElementById('user-email');
@@ -321,6 +359,8 @@
       const loginForm = document.getElementById('login-form');
       const signupForm = document.getElementById('signup-form');
       const watchButton = document.getElementById('watch-button');
+      const withdrawButton = document.getElementById('withdraw-button');
+      const withdrawHint = document.getElementById('withdraw-hint');
 
       let currentToken = null;
 
@@ -368,8 +408,11 @@
         });
         const submitBtn = form.querySelector('button[type="submit"]');
         if (submitBtn) {
+          if (!submitBtn.dataset.label) {
+            submitBtn.dataset.label = submitBtn.textContent;
+          }
           submitBtn.disabled = loading;
-          submitBtn.textContent = loading ? 'Patiente...' : submitBtn.dataset.label || submitBtn.textContent;
+          submitBtn.textContent = loading ? 'Patiente...' : submitBtn.dataset.label;
         }
       };
 
@@ -377,9 +420,21 @@
         balanceValue.textContent = Number(balance ?? 0).toFixed(2);
       };
 
-      const updateUserUI = ({ email, balance }) => {
+      const updateUserUI = ({ email, balance, canWithdraw }) => {
         if (email) userEmailEl.textContent = email;
         if (balance !== undefined) updateBalanceDisplay(balance);
+        if (typeof canWithdraw === 'boolean') {
+          updateWithdrawState(canWithdraw);
+        }
+      };
+
+      const updateWithdrawState = (canWithdraw) => {
+        if (!withdrawButton) return;
+        withdrawButton.disabled = !canWithdraw;
+        withdrawButton.classList.toggle('disabled', !canWithdraw);
+        withdrawHint.textContent = canWithdraw
+          ? 'Tu peux retirer 1,50 € immédiatement.'
+          : "Retrait possible à partir de 1,50 € collectés.";
       };
 
       const parseResponse = async (response) => {
@@ -427,9 +482,10 @@
       loginForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         setAuthMessage('Connexion en cours...');
+        const payload = serializeForm(loginForm);
         setFormLoading(loginForm, true);
         try {
-          const data = await authenticateRequest('/api/login', serializeForm(loginForm));
+          const data = await authenticateRequest('/api/login', payload);
           handleAuthSuccess(data);
         } catch (error) {
           handleAuthError(error);
@@ -441,9 +497,10 @@
       signupForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         setAuthMessage('Création du compte...');
+        const payload = serializeForm(signupForm);
         setFormLoading(signupForm, true);
         try {
-          const data = await authenticateRequest('/api/signup', serializeForm(signupForm));
+          const data = await authenticateRequest('/api/signup', payload);
           handleAuthSuccess(data);
         } catch (error) {
           handleAuthError(error);
@@ -480,8 +537,26 @@
         }
       });
 
-      const INCREMENT_VALUE_TEXT = () =>
-        Number(document.body.dataset.increment || 0.01).toFixed(2);
+      withdrawButton.addEventListener('click', async () => {
+        withdrawButton.disabled = true;
+        const originalLabel = withdrawButton.textContent;
+        withdrawButton.textContent = 'Traitement...';
+        try {
+          const data = await fetchWithAuth('/api/withdraw', { method: 'POST' });
+          updateUserUI(data);
+          statusEl.textContent = `- ${MIN_WITHDRAW.toFixed(2)} € retirés (simulateur).`;
+        } catch (error) {
+          statusEl.textContent = error.message || 'Retrait impossible.';
+        } finally {
+          withdrawButton.textContent = originalLabel;
+          withdrawButton.disabled = withdrawButton.classList.contains('disabled');
+        }
+      });
+
+      const MIN_WITHDRAW = Number(body.dataset.minWithdraw || 1.5);
+      const INCREMENT_VALUE = Number(body.dataset.increment || 0.01);
+
+      const INCREMENT_VALUE_TEXT = () => INCREMENT_VALUE.toFixed(2);
 
       const bootstrap = async () => {
         const existingToken = localStorage.getItem(TOKEN_KEY);

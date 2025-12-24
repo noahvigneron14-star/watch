@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 
 const PORT = process.env.PORT || 3000;
 const INCREMENT_VALUE = Number(process.env.INCREMENT_VALUE ?? 0.01);
+const MIN_WITHDRAW = Number(process.env.MIN_WITHDRAW ?? 1.5);
 const connectionString = process.env.DATABASE_URL || process.env.LOCAL_DATABASE_URL;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
@@ -141,7 +142,8 @@ app.get('/api/balance', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
 
-    res.json({ email: rows[0].email, balance: Number(rows[0].balance) });
+    const balance = Number(rows[0].balance);
+    res.json({ email: rows[0].email, balance, canWithdraw: balance >= MIN_WITHDRAW });
   } catch (error) {
     console.error('Erreur lors de la récupération de la balance:', error.message);
     res.status(500).json({ error: 'Impossible de récupérer la cagnotte' });
@@ -159,10 +161,33 @@ app.post('/api/watch-ad', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
 
-    res.json({ balance: Number(rows[0].balance), increment: INCREMENT_VALUE });
+    const balance = Number(rows[0].balance);
+    res.json({ balance, increment: INCREMENT_VALUE, canWithdraw: balance >= MIN_WITHDRAW });
   } catch (error) {
     console.error('Erreur lors de la mise à jour de la cagnotte:', error.message);
     res.status(500).json({ error: 'Impossible de mettre à jour la cagnotte' });
+  }
+});
+
+app.post('/api/withdraw', authenticate, async (req, res) => {
+  try {
+    const { rowCount, rows } = await pool.query(
+      `UPDATE users
+       SET balance = balance - $1
+       WHERE id = $2 AND balance >= $1
+       RETURNING balance`,
+      [MIN_WITHDRAW, req.userId]
+    );
+
+    if (rowCount === 0) {
+      return res.status(400).json({ error: `Solde insuffisant (minimum ${MIN_WITHDRAW} €)` });
+    }
+
+    const balance = Number(rows[0].balance);
+    res.json({ balance, withdrawn: MIN_WITHDRAW, canWithdraw: balance >= MIN_WITHDRAW });
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour de la cagnotte:', error.message);
+    res.status(500).json({ error: 'Impossible d’effectuer le retrait' });
   }
 });
 
