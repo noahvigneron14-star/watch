@@ -7,14 +7,25 @@
     <style>
       :root {
         --bg: #05070f;
-        --card: rgba(12, 16, 33, 0.9);
+        --card: rgba(12, 16, 33, 0.92);
         --accent: #ffb703;
         --accent-dark: #e18600;
         --text: #f4f6ff;
         --muted: #97a0c3;
         --card-border: rgba(255, 255, 255, 0.08);
         --error: #ff4d6d;
+        --glow: rgba(255, 183, 3, 0.25);
+        --bg-purple: rgba(62, 83, 255, 0.15);
       }
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
 
       * {
         box-sizing: border-box;
@@ -30,6 +41,34 @@
         align-items: center;
         justify-content: center;
         padding: 2rem;
+        position: relative;
+        overflow-x: hidden;
+      }
+
+      body::before,
+      body::after {
+        content: "";
+        position: absolute;
+        width: 420px;
+        height: 420px;
+        border-radius: 50%;
+        filter: blur(120px);
+        opacity: 0.55;
+        pointer-events: none;
+        animation: drift 12s ease-in-out infinite alternate;
+      }
+
+      body::before {
+        background: var(--glow);
+        top: 10%;
+        left: 5%;
+      }
+
+      body::after {
+        background: var(--bg-purple);
+        bottom: 5%;
+        right: 0;
+        animation-delay: 2s;
       }
 
       .card {
@@ -41,6 +80,8 @@
         box-shadow: 0 30px 60px rgba(0, 0, 0, 0.35);
         position: relative;
         overflow: hidden;
+        backdrop-filter: blur(12px);
+        animation: fadeIn 420ms ease forwards;
       }
 
       .card::after {
@@ -49,6 +90,41 @@
         inset: 0;
         background: radial-gradient(circle at 80% -10%, rgba(255, 184, 3, 0.25), transparent 45%);
         pointer-events: none;
+      }
+
+      .orb {
+        position: absolute;
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 255, 255, 0.2), transparent 65%);
+        animation: float 6s ease-in-out infinite;
+        opacity: 0.3;
+        pointer-events: none;
+      }
+
+      .orb:nth-child(1) {
+        top: 60px;
+        right: 80px;
+        animation-delay: 0s;
+      }
+
+      .orb:nth-child(2) {
+        bottom: 20px;
+        left: 100px;
+        animation-delay: 1.5s;
+      }
+
+      @keyframes float {
+        0% {
+          transform: translateY(0) scale(1);
+        }
+        50% {
+          transform: translateY(-20px) scale(1.05);
+        }
+        100% {
+          transform: translateY(0) scale(1);
+        }
       }
 
       .card-header {
@@ -163,7 +239,8 @@
         cursor: pointer;
         color: #040404;
         background: linear-gradient(135deg, var(--accent), var(--accent-dark));
-        transition: transform 200ms ease, box-shadow 200ms ease;
+        transition: transform 200ms ease, box-shadow 200ms ease, filter 200ms ease;
+        box-shadow: 0 18px 30px rgba(255, 183, 3, 0.35);
       }
 
       .primary-btn:hover {
@@ -261,6 +338,7 @@
       .hint {
         font-size: 0.85rem;
         color: var(--muted);
+        animation: subtleFade 3s ease-in-out infinite alternate;
       }
 
       .offerwall {
@@ -300,16 +378,19 @@
       .ad-modal {
         position: fixed;
         inset: 0;
-        background: rgba(2, 4, 9, 0.92);
+        background: rgba(2, 4, 9, 0.82);
         display: none;
         align-items: center;
         justify-content: center;
         padding: 1.5rem;
         z-index: 10;
+        opacity: 0;
+        transition: opacity 240ms ease;
       }
 
       .ad-modal.open {
         display: flex;
+        opacity: 1;
       }
 
       .ad-card {
@@ -320,7 +401,7 @@
         padding: 1.75rem;
         position: relative;
         box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
-        animation: rise 260ms ease-out;
+        animation: rise 320ms ease;
       }
 
       .ad-chip {
@@ -350,6 +431,7 @@
         background: #01030a;
         display: block;
         margin-bottom: 1rem;
+        box-shadow: 0 15px 35px rgba(0, 0, 0, 0.45);
       }
 
       .ad-close {
@@ -364,6 +446,7 @@
         height: 40px;
         cursor: pointer;
         font-size: 1.2rem;
+        transition: opacity 200ms ease;
       }
 
       @keyframes rise {
@@ -375,6 +458,63 @@
           transform: translateY(0);
           opacity: 1;
         }
+      }
+
+      @keyframes drift {
+        to {
+          transform: translate(60px, -40px) scale(1.05);
+          opacity: 0.35;
+        }
+      }
+
+      @keyframes fadeIn {
+        from {
+          transform: translateY(24px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
+      @keyframes subtleFade {
+        from {
+          opacity: 0.65;
+        }
+        to {
+          opacity: 1;
+        }
+      }
+
+      .status.waiting::after {
+        content: "";
+        display: inline-block;
+        width: 36px;
+        height: 6px;
+        margin-left: 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.3);
+        animation: shimmer 1.2s ease-in-out infinite;
+      }
+
+      @keyframes shimmer {
+        0% {
+          transform: translateX(-8px);
+          opacity: 0.6;
+        }
+        50% {
+          transform: translateX(8px);
+          opacity: 1;
+        }
+        100% {
+          transform: translateX(-8px);
+          opacity: 0.6;
+        }
+      }
+
+      body.modal-open {
+        overflow: hidden;
       }
 
       .hidden {
@@ -467,7 +607,6 @@
         <video
           id="ad-video"
           playsinline
-          controls
           poster="https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=900&q=80"
         >
           <source
@@ -503,6 +642,7 @@
       const closeAdButton = document.getElementById('ad-close-button');
 
       let currentToken = null;
+      let rewardUnlocked = false;
 
       const setToken = (token) => {
         currentToken = token;
@@ -665,58 +805,36 @@
       };
 
       const openAdModal = () => {
-        if (!adModal || !claimRewardButton) return;
+        if (!adModal || !adVideo || !claimRewardButton) return;
+        rewardUnlocked = false;
         adModal.classList.add('open');
         adModal.setAttribute('aria-hidden', 'false');
         claimRewardButton.disabled = true;
         claimRewardButton.textContent = 'Réclamer ma récompense';
-
-        // Inject AdSense script once
-        if (!adsenseLoaded) {
-          const s = document.createElement('script');
-          s.async = true;
-          s.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`;
-          s.crossOrigin = 'anonymous';
-          document.head.appendChild(s);
-          adsenseLoaded = true;
+        statusEl.textContent = 'Publicité en cours, regarde jusqu’à la fin.';
+        closeAdButton?.setAttribute('disabled', 'true');
+        adVideo.currentTime = 0;
+        const playPromise = adVideo.play();
+        if (playPromise?.catch) {
+          playPromise.catch(() => {
+            statusEl.textContent = 'Clique sur lecture pour lancer la pub.';
+          });
         }
-
-        // Create ad container inside the modal if not present
-        let adSlot = document.getElementById('adsense-slot');
-        if (!adSlot) {
-          adSlot = document.createElement('ins');
-          adSlot.id = 'adsense-slot';
-          adSlot.className = 'adsbygoogle';
-          adSlot.style.display = 'block';
-          adSlot.setAttribute('data-ad-client', ADSENSE_CLIENT);
-          adSlot.setAttribute('data-ad-format', 'auto');
-          adSlot.setAttribute('data-full-width-responsive', 'true');
-          claimRewardButton.parentNode.insertBefore(adSlot, claimRewardButton);
-        }
-
-        try {
-          (window.adsbygoogle = window.adsbygoogle || []).push({});
-        } catch (e) {
-          console.warn('AdSense push error', e);
-        }
-
-        statusEl.textContent = 'Publicité en cours...';
-
-        // Débloque le bouton après 25 s (approx. durée pub)
-        setTimeout(() => {
-          claimRewardButton.disabled = false;
-          statusEl.textContent = 'Réclame ta récompense pour créditer ta cagnotte.';
-        }, 25000);
       };
 
-      const closeAdModal = (reason = '') => {
+      const closeAdModal = (reason = '', force = false) => {
         if (!adModal || !adVideo) return;
+        if (!force && !rewardUnlocked) {
+          statusEl.textContent = 'Tu dois finir la pub pour fermer.';
+          return;
+        }
         adModal.classList.remove('open');
         adModal.setAttribute('aria-hidden', 'true');
         adVideo.pause();
         if (reason) {
           statusEl.textContent = reason;
         }
+        closeAdButton?.removeAttribute('disabled');
         watchButton.disabled = false;
       };
 
@@ -726,8 +844,18 @@
         openAdModal();
       });
 
+      adVideo?.addEventListener('ended', () => {
+        rewardUnlocked = true;
+        claimRewardButton.disabled = false;
+        closeAdButton?.removeAttribute('disabled');
+        statusEl.textContent = 'Vidéo terminée ! Réclame ta récompense.';
+      });
+
       claimRewardButton?.addEventListener('click', async () => {
-        if (claimRewardButton.disabled) return;
+        if (!rewardUnlocked) {
+          statusEl.textContent = 'Attends la fin de la vidéo.';
+          return;
+        }
         claimRewardButton.disabled = true;
         claimRewardButton.textContent = 'Crédit en cours...';
         statusEl.textContent = 'Crédit en cours...';
@@ -735,7 +863,7 @@
           const data = await fetchWithAuth('/api/watch-ad', { method: 'POST' });
           updateUserUI(data);
           statusEl.textContent = `+${INCREMENT_VALUE_TEXT()} € ajoutés`;
-          closeAdModal();
+          closeAdModal('', true);
         } catch (error) {
           statusEl.textContent = error.message || "Impossible d'ajouter la pub.";
           claimRewardButton.disabled = false;
@@ -744,12 +872,12 @@
       });
 
       closeAdButton?.addEventListener('click', () => {
-        closeAdModal('Tu as fermé la pub sans créditer ta cagnotte.');
+        closeAdModal();
       });
 
       adModal?.addEventListener('click', (event) => {
         if (event.target === adModal) {
-          closeAdModal('Tu as fermé la pub sans créditer ta cagnotte.');
+          closeAdModal();
         }
       });
 
@@ -771,8 +899,6 @@
 
       const MIN_WITHDRAW = Number(body.dataset.minWithdraw || 1.5);
       const INCREMENT_VALUE = Number(body.dataset.increment || 0.01);
-      const ADSENSE_CLIENT = 'ca-pub-8483980830188956';
-      let adsenseLoaded = false;
 
       const INCREMENT_VALUE_TEXT = () => INCREMENT_VALUE.toFixed(2);
 
