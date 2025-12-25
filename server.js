@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const cors = require('cors');
 const path = require('path');
 const { Pool } = require('pg');
@@ -10,7 +11,7 @@ const INCREMENT_VALUE = Number(process.env.INCREMENT_VALUE ?? 0.01);
 const MIN_WITHDRAW = Number(process.env.MIN_WITHDRAW ?? 1.5);
 const connectionString = process.env.DATABASE_URL || process.env.LOCAL_DATABASE_URL;
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
-const KIWIWALL_SECRET = process.env.KIWIWALL_SECRET || null;
+const BITLABS_SECRET = process.env.BITLABS_SECRET || null;
 
 if (!connectionString) {
   console.error('DATABASE_URL (ou LOCAL_DATABASE_URL) est requis pour se connecter à Postgres.');
@@ -193,40 +194,43 @@ app.post('/api/withdraw', authenticate, async (req, res) => {
   }
 });
 
-app.post('/api/kiwiwall-callback', async (req, res) => {
+// BitLabs server-to-server callback
+// Documentation: https://docs.bitlabs.ai/#reward-callback
+// Expected query: ?uid=<email>&points=<number>&transaction_id=<id>&sig=<md5>
+app.get('/api/bitlabs-callback', async (req, res) => {
   try {
-    if (!KIWIWALL_SECRET) {
-      console.error('KIWIWALL_SECRET non configuré');
-      return res.status(500).send('Secret manquant');
-    }
+    if (!BITLABS_SECRET) return res.status(500).send('Secret non configuré');
 
-    const providedSecret = req.query.secret || req.body.secret;
-    if (providedSecret !== KIWIWALL_SECRET) {
-      return res.status(403).send('Signature invalide');
-    }
-
-    const rawSubId = req.body.subid || req.body.sub_id || req.body.user_id;
-    const payoutRaw = req.body.amount ?? req.body.payout ?? req.body.reward;
-    const payout = Number(payoutRaw);
-
-    if (!rawSubId || Number.isNaN(payout) || payout <= 0) {
+    const { uid = '', points = '', sig = '' } = req.query;
+    const payout = Number(points);
+    if (!uid || !points || Number.isNaN(payout) || payout <= 0) {
       return res.status(400).send('Paramètres invalides');
     }
 
-    const userKey = rawSubId.includes('@') ? normalizeEmail(rawSubId) : rawSubId;
+    // Vérification de la signature MD5(uid + points + secret)
+    const expectedSig = crypto
+      .createHash('md5')
+      .update(uid + points + BITLABS_SECRET)
+      .digest('hex');
+
+    if (expectedSig !== sig) {
+      return res.status(403).send('Signature invalide');
+    }
+
+    const email = normalizeEmail(uid);
     const { rowCount } = await pool.query(
       'UPDATE users SET balance = balance + $1 WHERE email = $2',
-      [payout, userKey]
+      [payout, email]
     );
 
     if (rowCount === 0) {
       return res.status(404).send('Utilisateur introuvable');
     }
 
-    console.log(`KiwiWall payout ${payout}€ pour ${userKey}`);
+    console.log(`BitLabs payout ${payout} pour ${email}`);
     res.send('OK');
   } catch (error) {
-    console.error('Erreur KiwiWall callback:', error.message);
+    console.error('Erreur BitLabs callback:', error.message);
     res.status(500).send('Erreur serveur');
   }
 });

@@ -297,6 +297,86 @@
         background: #07090f;
       }
 
+      .ad-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(2, 4, 9, 0.92);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        z-index: 10;
+      }
+
+      .ad-modal.open {
+        display: flex;
+      }
+
+      .ad-card {
+        background: #0c1224;
+        border-radius: 28px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        width: min(720px, 100%);
+        padding: 1.75rem;
+        position: relative;
+        box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+        animation: rise 260ms ease-out;
+      }
+
+      .ad-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border-radius: 999px;
+        padding: 0.3rem 0.9rem;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: var(--accent);
+        background: rgba(255, 183, 3, 0.12);
+        border: 1px solid rgba(255, 183, 3, 0.35);
+        margin-bottom: 1rem;
+      }
+
+      .ad-card h2 {
+        margin: 0 0 1rem;
+        font-size: clamp(1.5rem, 3vw, 2rem);
+      }
+
+      .ad-card video {
+        width: 100%;
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: #01030a;
+        display: block;
+        margin-bottom: 1rem;
+      }
+
+      .ad-close {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        border: none;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text);
+        border-radius: 999px;
+        width: 40px;
+        height: 40px;
+        cursor: pointer;
+        font-size: 1.2rem;
+      }
+
+      @keyframes rise {
+        from {
+          transform: translateY(20px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
+
       .hidden {
         display: none !important;
       }
@@ -317,11 +397,7 @@
       }
     </style>
   </head>
-  <body
-    data-increment="0.01"
-    data-min-withdraw="1.5"
-    data-kiwiwall-url="https://www.kiwiwall.com/wall/vipcn3tv7k9z76i3tqupqvmua1jdfur9"
-  >
+  <body data-increment="0.01" data-min-withdraw="1.5">
     <main class="card">
       <header class="card-header">
         <div>
@@ -379,16 +455,31 @@
           <button class="secondary-btn" id="withdraw-button" disabled>Retirer 1,50 €</button>
           <p class="hint" id="withdraw-hint">Retrait possible à partir de 1,50 € collectés.</p>
         </div>
-        <section class="offerwall hidden" id="offerwall">
-          <header>
-            <h2>Missions KiwiWall</h2>
-            <span>Complète une offre pour gagner plus</span>
-          </header>
-          <iframe id="kiwiwall-frame" title="KiwiWall offerwall"></iframe>
-        </section>
         <p class="status" id="status"></p>
       </section>
     </main>
+
+    <section class="ad-modal" id="ad-modal" aria-hidden="true">
+      <div class="ad-card" role="dialog" aria-modal="true" aria-labelledby="ad-modal-title">
+        <button class="ad-close" id="ad-close-button" aria-label="Fermer la pub">×</button>
+        <p class="ad-chip">Pub sponsorisée</p>
+        <h2 id="ad-modal-title">Regarde cette vidéo pour débloquer ta récompense</h2>
+        <video
+          id="ad-video"
+          playsinline
+          controls
+          poster="https://images.unsplash.com/photo-1478720568477-152d9b164e26?auto=format&fit=crop&w=900&q=80"
+        >
+          <source
+            src="https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4"
+            type="video/mp4"
+          />
+          Ton navigateur ne supporte pas la vidéo HTML5.
+        </video>
+        <button class="primary-btn" id="claim-reward-button" disabled>Réclamer ma récompense</button>
+        <p class="hint">La récompense se débloque quand la vidéo est terminée.</p>
+      </div>
+    </section>
 
     <script>
       const TOKEN_KEY = 'cagnotte_token';
@@ -406,8 +497,10 @@
       const watchButton = document.getElementById('watch-button');
       const withdrawButton = document.getElementById('withdraw-button');
       const withdrawHint = document.getElementById('withdraw-hint');
-      const offerwallSection = document.getElementById('offerwall');
-      const offerwallFrame = document.getElementById('kiwiwall-frame');
+      const adModal = document.getElementById('ad-modal');
+      const adVideo = document.getElementById('ad-video');
+      const claimRewardButton = document.getElementById('claim-reward-button');
+      const closeAdButton = document.getElementById('ad-close-button');
 
       let currentToken = null;
 
@@ -473,9 +566,6 @@
         if (typeof canWithdraw === 'boolean') {
           updateWithdrawState(canWithdraw);
         }
-        if (email) {
-          updateOfferwall(email);
-        }
       };
 
       const updateWithdrawState = (canWithdraw) => {
@@ -487,19 +577,6 @@
           : "Retrait possible à partir de 1,50 € collectés.";
       };
 
-      const updateOfferwall = (email) => {
-        if (!offerwallSection || !offerwallFrame) return;
-        offerwallSection.classList.remove('hidden');
-        const encodedEmail = encodeURIComponent(email);
-        offerwallFrame.src = `${KIWIWALL_URL}/${encodedEmail}`;
-      };
-
-      const resetOfferwall = () => {
-        if (offerwallFrame) {
-          offerwallFrame.removeAttribute('src');
-        }
-        offerwallSection?.classList.add('hidden');
-      };
 
       const parseResponse = async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -587,17 +664,93 @@
         }
       };
 
-      watchButton.addEventListener('click', async () => {
+      const openAdModal = () => {
+        if (!adModal || !claimRewardButton) return;
+        adModal.classList.add('open');
+        adModal.setAttribute('aria-hidden', 'false');
+        claimRewardButton.disabled = true;
+        claimRewardButton.textContent = 'Réclamer ma récompense';
+
+        // Inject AdSense script once
+        if (!adsenseLoaded) {
+          const s = document.createElement('script');
+          s.async = true;
+          s.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`;
+          s.crossOrigin = 'anonymous';
+          document.head.appendChild(s);
+          adsenseLoaded = true;
+        }
+
+        // Create ad container inside the modal if not present
+        let adSlot = document.getElementById('adsense-slot');
+        if (!adSlot) {
+          adSlot = document.createElement('ins');
+          adSlot.id = 'adsense-slot';
+          adSlot.className = 'adsbygoogle';
+          adSlot.style.display = 'block';
+          adSlot.setAttribute('data-ad-client', ADSENSE_CLIENT);
+          adSlot.setAttribute('data-ad-format', 'auto');
+          adSlot.setAttribute('data-full-width-responsive', 'true');
+          claimRewardButton.parentNode.insertBefore(adSlot, claimRewardButton);
+        }
+
+        try {
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+        } catch (e) {
+          console.warn('AdSense push error', e);
+        }
+
+        statusEl.textContent = 'Publicité en cours...';
+
+        // Débloque le bouton après 25 s (approx. durée pub)
+        setTimeout(() => {
+          claimRewardButton.disabled = false;
+          statusEl.textContent = 'Réclame ta récompense pour créditer ta cagnotte.';
+        }, 25000);
+      }
+      }
+
+      const closeAdModal = (reason = '') => {
+        if (!adModal || !adVideo) return;
+        adModal.classList.remove('open');
+        adModal.setAttribute('aria-hidden', 'true');
+        adVideo.pause();
+        if (reason) {
+          statusEl.textContent = reason;
+        }
+        watchButton.disabled = false;
+      };
+
+      watchButton.addEventListener('click', () => {
+        statusEl.textContent = 'Regarde la vidéo pour débloquer ta récompense.';
         watchButton.disabled = true;
+        openAdModal();
+      });
+
+      claimRewardButton?.addEventListener('click', async () => {
+        if (claimRewardButton.disabled) return;
+        claimRewardButton.disabled = true;
+        claimRewardButton.textContent = 'Crédit en cours...';
         statusEl.textContent = 'Crédit en cours...';
         try {
           const data = await fetchWithAuth('/api/watch-ad', { method: 'POST' });
           updateUserUI(data);
           statusEl.textContent = `+${INCREMENT_VALUE_TEXT()} € ajoutés`;
+          closeAdModal();
         } catch (error) {
           statusEl.textContent = error.message || "Impossible d'ajouter la pub.";
-        } finally {
-          watchButton.disabled = false;
+          claimRewardButton.disabled = false;
+          claimRewardButton.textContent = 'Réclamer ma récompense';
+        }
+      });
+
+      closeAdButton?.addEventListener('click', () => {
+        closeAdModal('Tu as fermé la pub sans créditer ta cagnotte.');
+      });
+
+      adModal?.addEventListener('click', (event) => {
+        if (event.target === adModal) {
+          closeAdModal('Tu as fermé la pub sans créditer ta cagnotte.');
         }
       });
 
@@ -619,7 +772,8 @@
 
       const MIN_WITHDRAW = Number(body.dataset.minWithdraw || 1.5);
       const INCREMENT_VALUE = Number(body.dataset.increment || 0.01);
-      const KIWIWALL_URL = body.dataset.kiwiwallUrl || '';
+      const ADSENSE_CLIENT = 'ca-pub-8483980830188956';
+      let adsenseLoaded = false;
 
       const INCREMENT_VALUE_TEXT = () => INCREMENT_VALUE.toFixed(2);
 
@@ -643,10 +797,10 @@
         setToken(null);
         togglePanels(false);
         updateUserUI({ balance: 0 });
-        resetOfferwall();
         if (!silent) {
           setAuthMessage('Tu es déconnecté·e.');
         }
+        closeAdModal();
       };
 
       logoutBtn.addEventListener('click', () => handleLogout());
