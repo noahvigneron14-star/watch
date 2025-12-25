@@ -707,6 +707,42 @@
           claimRewardButton.disabled = false;
           statusEl.textContent = 'Réclame ta récompense pour créditer ta cagnotte.';
         }, 25000);
+      };
+        if (!adsenseLoaded) {
+          const s = document.createElement('script');
+          s.async = true;
+          s.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`;
+          s.crossOrigin = 'anonymous';
+          document.head.appendChild(s);
+          adsenseLoaded = true;
+        }
+
+        // Create ad container inside the modal if not present
+        let adSlot = document.getElementById('adsense-slot');
+        if (!adSlot) {
+          adSlot = document.createElement('ins');
+          adSlot.id = 'adsense-slot';
+          adSlot.className = 'adsbygoogle';
+          adSlot.style.display = 'block';
+          adSlot.setAttribute('data-ad-client', ADSENSE_CLIENT);
+          adSlot.setAttribute('data-ad-format', 'auto');
+          adSlot.setAttribute('data-full-width-responsive', 'true');
+          claimRewardButton.parentNode.insertBefore(adSlot, claimRewardButton);
+        }
+
+        try {
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+        } catch (e) {
+          console.warn('AdSense push error', e);
+        }
+
+        statusEl.textContent = 'Publicité en cours...';
+
+        // Débloque le bouton après 25 s (approx. durée pub)
+        setTimeout(() => {
+          claimRewardButton.disabled = false;
+          statusEl.textContent = 'Réclame ta récompense pour créditer ta cagnotte.';
+        }, 25000);
       }
       }
 
